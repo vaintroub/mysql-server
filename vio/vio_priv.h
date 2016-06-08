@@ -30,6 +30,7 @@ size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_pipe(Vio *vio);
 int vio_shutdown_pipe(Vio * vio);
+void vio_delete_pipe(Vio *vio);
 #endif
 
 #ifdef HAVE_SMEM
@@ -43,6 +44,8 @@ void vio_delete_shared_memory(Vio *vio);
 my_bool vio_buff_has_data(Vio *vio);
 int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event);
 int vio_socket_timeout(Vio *vio, uint which, my_bool old_mode);
+int vio_socket_shutdown(Vio *vio);
+void vio_socket_delete(Vio *vio);
 
 #ifdef HAVE_OPENSSL
 #include "my_net.h"			/* needed because of struct in_addr */

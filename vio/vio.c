@@ -76,7 +76,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
 #ifdef _WIN32
   if (type == VIO_TYPE_NAMEDPIPE)
   {
-    vio->viodelete	=vio_delete;
+    vio->viodelete	=vio_delete_pipe;
     vio->vioerrno	=vio_errno;
     vio->read           =vio_read_pipe;
     vio->write          =vio_write_pipe;
@@ -131,7 +131,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     DBUG_VOID_RETURN;
   }
 #endif /* HAVE_OPENSSL */
-  vio->viodelete        =vio_delete;
+  vio->viodelete        =vio_socket_delete;
   vio->vioerrno         =vio_errno;
   vio->read=            (flags & VIO_BUFFERED_READ) ? vio_read_buff : vio_read;
   vio->write            =vio_write;
@@ -139,7 +139,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   vio->viokeepalive     =vio_keepalive;
   vio->should_retry     =vio_should_retry;
   vio->was_timeout      =vio_was_timeout;
-  vio->vioshutdown      =vio_shutdown;
+  vio->vioshutdown      =vio_socket_shutdown;
   vio->peer_addr        =vio_peer_addr;
   vio->io_wait          =vio_io_wait;
   vio->is_connected     =vio_is_connected;
@@ -225,9 +225,10 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
       Close socket only when it is not equal to the new one.
     */
     if (sd != mysql_socket_getfd(vio->mysql_socket))
-      if (vio->inactive == FALSE)
-        vio->vioshutdown(vio);
-
+    {
+      vio->vioshutdown(vio);
+      mysql_socket_close(vio->mysql_socket);
+    }
     my_free(vio->read_buffer);
 
     *vio= new_vio;
@@ -365,9 +366,6 @@ void vio_delete(Vio* vio)
 {
   if (!vio)
     return; /* It must be safe to delete null pointers. */
-
-  if (vio->inactive == FALSE)
-    vio->vioshutdown(vio);
   my_free(vio->read_buffer);
   my_free(vio);
 }

@@ -210,6 +210,14 @@ SET(SQL_SOURCE
   sql_client.cc
   )
 
+
+IF(WIN32)
+  LIST(APPEND SQL_SOURCE threadpool_common.cc threadpool_win.cc)
+ELSE()
+  LIST(APPEND SQL_SOURCE threadpool_common.cc threadpool_unix.cc)
+ENDIF()
+ADD_DEFINITIONS(-DHAVE_POOL_OF_THREADS)
+
 IF (WIN32 AND OPENSSL_APPLINK_C)
   SET_SOURCE_FILES_PROPERTIES(
     ../sql-common/client_authentication.cc

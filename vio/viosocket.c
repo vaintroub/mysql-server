@@ -22,7 +22,10 @@
   we are working on.  In this case we should just return read errors from
   the file descriptior.
 */
-
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 #include "vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
@@ -399,8 +402,15 @@ vio_was_timeout(Vio *vio)
   return (vio_errno(vio) == SOCKET_ETIMEDOUT);
 }
 
+void vio_socket_delete(Vio *vio)
+{
+  if (!vio)
+    return;
+  mysql_socket_close(vio->mysql_socket);
+  vio_delete(vio);
+}
 
-int vio_shutdown(Vio * vio)
+int vio_socket_shutdown(Vio * vio)
 {
   int r=0;
   DBUG_ENTER("vio_shutdown");
@@ -412,9 +422,10 @@ int vio_shutdown(Vio * vio)
       vio->type == VIO_TYPE_SSL);
 
     DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
+#ifdef _WIN32
+    CancelIoEx(mysql_socket_getfd(vio->mysql_socket), NULL);
+#endif
     if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
-      r= -1;
-    if (mysql_socket_close(vio->mysql_socket))
       r= -1;
   }
   if (r)
@@ -423,7 +434,6 @@ int vio_shutdown(Vio * vio)
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->inactive= TRUE;
-  vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
 

@@ -112,7 +112,7 @@ static void scheduler_wait_sync_end(void) {
   one_thread_scheduler() or one_thread_per_connection_scheduler() in
   mysqld.cc, so this init function will always be called.
  */
-static void scheduler_init() {
+void scheduler_init() {
   thr_set_lock_wait_callback(scheduler_wait_lock_begin,
                              scheduler_wait_lock_end);
   thr_set_sync_wait_callback(scheduler_wait_sync_begin,

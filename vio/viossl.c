@@ -291,7 +291,7 @@ int vio_ssl_shutdown(Vio *vio)
       break;
     }
   }
-  DBUG_RETURN(vio_shutdown(vio));
+  DBUG_RETURN(vio_socket_shutdown(vio));
 }
 
 
@@ -300,16 +300,13 @@ void vio_ssl_delete(Vio *vio)
   if (!vio)
     return; /* It must be safe to delete null pointer */
 
-  if (vio->inactive == FALSE)
-    vio_ssl_shutdown(vio); /* Still open, close connection first */
 
   if (vio->ssl_arg)
   {
     SSL_free((SSL*) vio->ssl_arg);
     vio->ssl_arg= 0;
   }
-
-  vio_delete(vio);
+  vio_socket_delete(vio);
 }
 
 

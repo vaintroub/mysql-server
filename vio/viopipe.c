@@ -12,11 +12,30 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 #include "vio_priv.h"
 
-#ifdef _WIN32
 
+#ifdef _WIN32
+/*
+  Disable posting IO completion event to the port.
+  In some cases(synchronous timed IO) we want to skip IOCP notifications.
+*/
+static void disable_iocp_notification(OVERLAPPED *overlapped)
+{
+	HANDLE *handle = &(overlapped->hEvent);
+	*handle = ((HANDLE)((ULONG_PTR)*handle | 1));
+}
+
+/* Enable posting IO completion event to the port */
+static void enable_iocp_notification(OVERLAPPED *overlapped)
+{
+	HANDLE *handle = &(overlapped->hEvent);
+	*handle = (HANDLE)((ULONG_PTR)*handle & ~1);
+}
 static size_t wait_overlapped_result(Vio *vio, int timeout)
 {
   size_t ret= (size_t) -1;
@@ -58,6 +77,8 @@ size_t vio_read_pipe(Vio *vio, uchar *buf, size_t count)
   size_t ret= (size_t) -1;
   DBUG_ENTER("vio_read_pipe");
 
+  disable_iocp_notification(&vio->overlapped);
+
   /* Attempt to read from the pipe (overlapped I/O). */
   if (ReadFile(vio->hPipe, buf, count, &transferred, &vio->overlapped))
   {
@@ -68,6 +89,7 @@ size_t vio_read_pipe(Vio *vio, uchar *buf, size_t count)
   else if (GetLastError() == ERROR_IO_PENDING)
     ret= wait_overlapped_result(vio, vio->read_timeout);
 
+  enable_iocp_notification(&vio->overlapped);
   DBUG_RETURN(ret);
 }
 
@@ -78,6 +100,7 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count)
   size_t ret= (size_t) -1;
   DBUG_ENTER("vio_write_pipe");
 
+  disable_iocp_notification(&vio->overlapped);
   /* Attempt to write to the pipe (overlapped I/O). */
   if (WriteFile(vio->hPipe, buf, count, &transferred, &vio->overlapped))
   {
@@ -87,7 +110,7 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count)
   /* Write operation is pending completion asynchronously? */
   else if (GetLastError() == ERROR_IO_PENDING)
     ret= wait_overlapped_result(vio, vio->write_timeout);
-
+  enable_iocp_notification(&vio->overlapped);
   DBUG_RETURN(ret);
 }
 
@@ -101,20 +124,21 @@ my_bool vio_is_connected_pipe(Vio *vio)
 }
 
 
+void vio_delete_pipe(Vio *vio)
+{
+   if (!vio)
+     return;
+   CloseHandle(vio->overlapped.hEvent);
+   DisconnectNamedPipe(vio->hPipe);
+   CloseHandle(vio->hPipe);
+   vio_delete(vio);
+}
+
 int vio_shutdown_pipe(Vio *vio)
 {
   BOOL ret;
   DBUG_ENTER("vio_shutdown_pipe");
-
-  CancelIo(vio->hPipe);
-  CloseHandle(vio->overlapped.hEvent);
-  DisconnectNamedPipe(vio->hPipe);
-  ret= CloseHandle(vio->hPipe);
-
-  vio->inactive= TRUE;
-  vio->hPipe= NULL;
-  vio->mysql_socket= MYSQL_INVALID_SOCKET;
-
+  CancelIoEx(vio->hPipe, NULL);
   DBUG_RETURN(ret);
 }
 

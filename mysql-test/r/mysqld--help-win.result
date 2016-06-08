@@ -620,8 +620,7 @@ The following options may be given as the first argument:
  --performance-schema-events-waits-history-size=# 
  Number of rows per thread in EVENTS_WAITS_HISTORY. Use 0
  to disable, -1 for automated sizing.
- --performance-schema-hosts-size=# 
- Maximum number of instrumented hosts. Use 0 to disable,
+ --performance-schema-hosts-size=#  Maximum number of instrumented hosts. Use 0 to disable,
  -1 for automated sizing.
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
@@ -999,7 +998,8 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
  Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads, loaded-dynamically
+ one-thread-per-connection, no-threads, pool-of-threads,
+ loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
  --timed-mutexes     Specify whether to time mutexes. Deprecated, has no
@@ -1320,7 +1320,7 @@ sysdate-is-now FALSE
 table-open-cache-instances 1
 tc-heuristic-recover COMMIT
 thread-cache-size 9
-thread-handling one-thread-per-connection
+thread-handling pool-of-threads
 thread-stack 262144
 time-format %H:%i:%s
 timed-mutexes FALSE

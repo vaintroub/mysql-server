@@ -78,6 +78,7 @@
 #include "global_threads.h"
 #include "mysqld.h"
 #include "my_default.h"
+#include "threadpool.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -1439,8 +1440,9 @@ static void close_connections(void)
                       DBUG_ASSERT(tmp->get_command() != COM_BINLOG_DUMP &&
                                   tmp->get_command() != COM_BINLOG_DUMP_GTID);
                     };);
-    MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (tmp));
+   
     mysql_mutex_lock(&tmp->LOCK_thd_data);
+    MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (tmp));
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -3444,6 +3446,16 @@ static bool init_global_datetime_format(timestamp_type format_type,
   }
   return false;
 }
+
+#ifdef HAVE_POOL_OF_THREADS
+int show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_INT;
+  var->value= buff;
+  *(int *)buff= tp_get_idle_thread_count();
+  return 0;
+}
+#endif
 
 SHOW_VAR com_status_vars[]= {
   {"admin_commands",       (char*) offsetof(STATUS_VAR, com_other), SHOW_LONG_STATUS},
@@ -8044,6 +8056,10 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
+#ifdef HAVE_POOL_OF_THREADS
+  {"Threadpool_idle_threads",  (char *) &show_threadpool_idle_threads, SHOW_FUNC},
+  {"Threadpool_threads",       (char *) &tp_stats.num_worker_threads, SHOW_INT},
+#endif
   {"Threads_cached",           (char*) &blocked_pthread_count,    SHOW_LONG_NOFLUSH},
   {"Threads_connected",        (char*) &connection_count,       SHOW_INT},
   {"Threads_created",        (char*) &thread_created,   SHOW_LONG_NOFLUSH},
@@ -9021,8 +9037,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 #else
   if (thread_handling <= SCHEDULER_ONE_THREAD_PER_CONNECTION)
     one_thread_per_connection_scheduler();
-  else                  /* thread_handling == SCHEDULER_NO_THREADS) */
+  else if (thread_handling == SCHEDULER_NO_THREADS)
     one_thread_scheduler();
+  else if (thread_handling == SCHEDULER_POOL_OF_THREADS)
+    tp_scheduler();
 #endif
 
   global_system_variables.engine_condition_pushdown=
