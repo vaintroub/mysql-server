@@ -104,7 +104,55 @@ static bool thread_attach(THD* thd)
   if (PSI_server)
     PSI_server->set_thread(thd->scheduler.m_psi);
 #endif
+  mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
   return 0;
+}
+
+
+#ifdef HAVE_PSI_INTERFACE
+
+/*
+  The following fixes PSI "idle" psi instrumentation. The server assumes that connection
+  becomes idle just before net_read_packet() and switches to active after it.
+*/
+
+extern void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */);
+
+static void dummy_net_before_header_psi(struct st_net *, void *, size_t)
+{
+}
+
+static void re_init_net_server_extension(THD *thd)
+{
+  if (thd->net.extension)
+  {
+    DBUG_ASSERT(thd->net.extension == &thd->m_net_server_extension);
+    DBUG_ASSERT(thd->m_net_server_extension.m_before_header == net_before_header_psi);
+    thd->m_net_server_extension.m_before_header = dummy_net_before_header_psi;
+  }
+}
+
+#else
+
+#define re_init_net_server_extension(thd)
+
+#endif /* HAVE_PSI_INTERFACE */
+
+
+static inline void set_thd_idle(THD *thd)
+{
+  thd->net.reading_or_writing= 1;
+  thd->m_server_idle = true;
+
+#ifdef HAVE_PSI_INTERFACE
+  if (thd->net.extension)
+  {
+    DBUG_ASSERT(thd->net.extension == &thd->m_net_server_extension);
+    DBUG_ASSERT(thd->m_net_server_extension.m_before_header == dummy_net_before_header_psi);
+    net_before_header_psi(&thd->net, thd, 0);
+  }
+#endif
+
 }
 
 
@@ -141,6 +189,7 @@ int threadpool_add_connection(THD *thd)
 
   /* Login. */
   thread_attach(thd);
+  re_init_net_server_extension(thd);
   ulonglong now= my_micro_time();
   thd->prior_thr_create_utime= now;
   thd->start_utime= now;
@@ -148,10 +197,8 @@ int threadpool_add_connection(THD *thd)
 
   if (!setup_connection_thread_globals(thd))
   {
-    if (!login_connection(thd))
+    if (!thd_prepare_connection(thd))
     {
-      prepare_new_connection_state(thd);
-      
       /* 
         Check if THD is ok, as prepare_new_connection_state()
         can fail, for example if init command failed.
@@ -159,7 +206,7 @@ int threadpool_add_connection(THD *thd)
       if (thd_is_connection_alive(thd))
       {
         retval= 0;
-        thd->net.reading_or_writing= 1;
+        set_thd_idle(thd);
       }
     }
   }
@@ -176,6 +223,9 @@ void threadpool_remove_connection(THD *thd)
 
   thread_attach(thd);
   thd->net.reading_or_writing= 0;
+
+  end_connection(thd);
+  close_connection(thd, 0);
 
   thd->release_resources();
   remove_global_thread(thd);
@@ -228,19 +278,19 @@ int threadpool_process_request(THD *thd)
 
     if ((retval= do_command(thd)) != 0)
       goto end;
-
     if (!thd_is_connection_alive(thd))
     {
       retval= 1;
       goto end;
     }
 
+    set_thd_idle(thd);
+
     vio= thd->net.vio;
     if (!vio->has_data(vio))
     { 
       /* More info on this debug sync is in sql_parse.cc*/
       DEBUG_SYNC(thd, "before_do_command_net_read");
-      thd->net.reading_or_writing= 1;
       goto end;
     }
   }
@@ -252,11 +302,9 @@ end:
 
 void tp_post_kill_notification(THD *thd)
 {
-  if (thd == current_thd)
+  if (thd == current_thd || thd->system_thread)
     return;
 
-  if (thd->active_vio)
-    vio_shutdown(thd->active_vio);
   if(thd->net.vio)
     vio_shutdown(thd->net.vio);
 }

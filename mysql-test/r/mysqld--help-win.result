@@ -620,7 +620,8 @@ The following options may be given as the first argument:
  --performance-schema-events-waits-history-size=# 
  Number of rows per thread in EVENTS_WAITS_HISTORY. Use 0
  to disable, -1 for automated sizing.
- --performance-schema-hosts-size=#  Maximum number of instrumented hosts. Use 0 to disable,
+ --performance-schema-hosts-size=# 
+ Maximum number of instrumented hosts. Use 0 to disable,
  -1 for automated sizing.
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
