@@ -26,6 +26,7 @@
 #include "sql_callback.h"
 #include "global_threads.h"
 #include "mysql/thread_pool_priv.h"
+#include "violite.h"
 
 /*
   End connection, in case when we are using 'no-threads'
@@ -102,6 +103,16 @@ static void scheduler_wait_sync_begin(void) {
 static void scheduler_wait_sync_end(void) {
   MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
 }
+
+static void scheduler_wait_net_begin(void){
+  MYSQL_CALLBACK(thread_scheduler,
+                 thd_wait_begin, (current_thd, THD_WAIT_NET));
+}
+
+static void scheduler_wait_net_end(void) {
+  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
+}
+
 };
 /**@}*/
 
@@ -117,6 +128,8 @@ void scheduler_init() {
                              scheduler_wait_lock_end);
   thr_set_sync_wait_callback(scheduler_wait_sync_begin,
                              scheduler_wait_sync_end);
+  vio_set_wait_callback(scheduler_wait_net_begin,
+                        scheduler_wait_net_end);
 }
 
 /*

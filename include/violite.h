@@ -118,7 +118,8 @@ int vio_getnameinfo(const struct sockaddr *sa,
                     char *hostname, size_t hostname_size,
                     char *port, size_t port_size,
                     int flags);
-
+void vio_set_wait_callback(void(*before_wait)(void),
+                           void(*after_wait)(void));
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
 #if OPENSSL_VERSION_NUMBER < 0x0090700f

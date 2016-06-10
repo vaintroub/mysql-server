@@ -45,6 +45,15 @@ int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
   return socket_errno;
 }
 
+static void (*before_wait)(void);
+static void(*after_wait)(void);
+
+void vio_set_wait_callback(void(*before)(void),
+                           void(*after)(void))
+{
+  before_wait= before;
+  after_wait= after;
+}
 
 /**
   Attempt to wait for an I/O event on a socket.
@@ -57,7 +66,7 @@ int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
 
 int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event)
 {
-  int timeout, ret;
+  int timeout, ret, io_wait_ret;
 
   DBUG_ASSERT(event == VIO_IO_EVENT_READ || event == VIO_IO_EVENT_WRITE);
 
@@ -67,8 +76,16 @@ int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event)
   else
     timeout= vio->write_timeout;
 
+  if (before_wait)
+    before_wait();
+
+  io_wait_ret = vio_io_wait(vio, event, timeout);
+
+  if (after_wait)
+    after_wait();
+
   /* Wait for input data to become available. */
-  switch (vio_io_wait(vio, event, timeout))
+  switch (io_wait_ret)
   {
   case -1:
     /* Upon failure, vio_read/write() shall return -1. */
