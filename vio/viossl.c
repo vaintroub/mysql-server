@@ -256,7 +256,7 @@ static long yassl_send(void *ptr, const void *buf, size_t len)
 
 #endif
 
-int vio_ssl_shutdown(Vio *vio)
+int vio_ssl_shutdown(Vio *vio, int how)
 {
   int r= 0;
   SSL *ssl= (SSL*)vio->ssl_arg;
@@ -291,7 +291,7 @@ int vio_ssl_shutdown(Vio *vio)
       break;
     }
   }
-  DBUG_RETURN(vio_socket_shutdown(vio));
+  DBUG_RETURN(vio_socket_shutdown(vio, how));
 }
 
 

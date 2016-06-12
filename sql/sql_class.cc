@@ -329,7 +329,7 @@ void thd_unlock_thread_count(THD *)
 void thd_close_connection(THD *thd)
 {
   if (thd->net.vio)
-    vio_shutdown(thd->net.vio);
+    vio_shutdown(thd->net.vio,SHUT_RDWR);
 }
 
 /**
@@ -1860,7 +1860,7 @@ void THD::disconnect()
   /* Disconnect even if a active vio is not associated. */
   if (net.vio != vio && net.vio != NULL)
   {
-    vio_shutdown(net.vio);
+    vio_shutdown(net.vio, SHUT_RD);
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -2343,7 +2343,7 @@ void THD::shutdown_active_vio()
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
-    vio_shutdown(active_vio);
+    vio_shutdown(active_vio, SHUT_RD);
     active_vio = 0;
   }
 #endif

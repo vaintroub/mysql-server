@@ -191,10 +191,15 @@ int threadpool_add_connection(THD *thd)
   thread_attach(thd);
   re_init_net_server_extension(thd);
   ulonglong now= my_micro_time();
-  thd->prior_thr_create_utime= now;
   thd->start_utime= now;
   thd->thr_create_utime= now;
-
+  if (thd->prior_thr_create_utime)
+  {
+    ulong launch_time= (ulong) (thd->thr_create_utime -
+                                thd->prior_thr_create_utime);
+	if (launch_time >= slow_launch_time * 1000000L)
+      slow_launch_threads++;
+  }
   if (!setup_connection_thread_globals(thd))
   {
     if (!thd_prepare_connection(thd))
@@ -306,7 +311,7 @@ void tp_post_kill_notification(THD *thd)
     return;
 
   if(thd->net.vio)
-    vio_shutdown(thd->net.vio);
+    vio_shutdown(thd->net.vio,  SHUT_RD);
 }
 static scheduler_functions tp_scheduler_functions=
 {

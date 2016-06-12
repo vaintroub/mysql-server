@@ -226,7 +226,6 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
     */
     if (sd != mysql_socket_getfd(vio->mysql_socket))
     {
-      vio->vioshutdown(vio);
       mysql_socket_close(vio->mysql_socket);
     }
     my_free(vio->read_buffer);

@@ -129,18 +129,17 @@ void vio_delete_pipe(Vio *vio)
    if (!vio)
      return;
    CloseHandle(vio->overlapped.hEvent);
-   DisconnectNamedPipe(vio->hPipe);
    CloseHandle(vio->hPipe);
    vio_delete(vio);
 }
 
-int vio_shutdown_pipe(Vio *vio)
+int vio_shutdown_pipe(Vio *vio, int how)
 {
-  BOOL ret;
   DBUG_ENTER("vio_shutdown_pipe");
   CancelIoEx(vio->hPipe, NULL);
-  DBUG_RETURN(ret);
-}
+  DisconnectNamedPipe(vio->hPipe);
+  DBUG_RETURN(0);
+}   
 
 #endif
 

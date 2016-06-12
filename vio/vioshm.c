@@ -160,7 +160,7 @@ void vio_delete_shared_memory(Vio *vio)
   if (!vio)
     DBUG_VOID_RETURN;
 
-  vio_shutdown_shared_memory(vio);
+  vio_shutdown_shared_memory(vio, SHUT_RDWR);
   /*
     Close all handlers. UnmapViewOfFile and CloseHandle return non-zero
     result if they are success.
@@ -202,7 +202,7 @@ void vio_delete_shared_memory(Vio *vio)
   All handles are closed and the VIO is cleaned up when vio_delete() is
   called and this completes the vio cleanup operation in its entirety.
 */
-int vio_shutdown_shared_memory(Vio * vio)
+int vio_shutdown_shared_memory(Vio * vio, int how)
 {
   DBUG_ENTER("vio_shutdown_shared_memory");
   /*

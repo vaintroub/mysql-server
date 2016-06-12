@@ -191,7 +191,7 @@ void vio_end(void);
 #define vio_keepalive(vio, set_keep_alive)  (vio)->viokeepalive(vio, set_keep_alive)
 #define vio_should_retry(vio)                   (vio)->should_retry(vio)
 #define vio_was_timeout(vio)                    (vio)->was_timeout(vio)
-#define vio_shutdown(vio)                       ((vio)->vioshutdown)(vio)
+#define vio_shutdown(vio,how)                   ((vio)->vioshutdown)(vio, how)
 #define vio_peer_addr(vio, buf, prt, buflen)    (vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_io_wait(vio, event, timeout)        (vio)->io_wait(vio, event, timeout)
 #define vio_is_connected(vio)                   (vio)->is_connected(vio)
@@ -256,7 +256,7 @@ struct st_vio
      further communications can take place, however any related buffers,
      descriptors, handles can remain valid after a shutdown.
   */
-  int     (*vioshutdown)(Vio*);
+  int     (*vioshutdown)(Vio*, int how);
   my_bool (*is_connected)(Vio*);
   my_bool (*has_data) (Vio*);
   int (*io_wait)(Vio*, enum enum_vio_io_event, int);

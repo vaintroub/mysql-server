@@ -6087,7 +6087,6 @@ void create_thread_to_handle_connection(THD *thd)
     int error;
     inc_thread_created();
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error= mysql_thread_create(key_thread_one_connection,
                                     &thd->real_id, &connection_attrib,
                                     handle_one_connection,
@@ -6190,7 +6189,7 @@ static void create_new_thread(THD *thd)
     TODO: refactor this to avoid code duplication there
   */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-
+  thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
   MYSQL_CALLBACK(thread_scheduler, add_connection, (thd));
 
   DBUG_VOID_RETURN;

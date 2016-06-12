@@ -427,7 +427,7 @@ void vio_socket_delete(Vio *vio)
   vio_delete(vio);
 }
 
-int vio_socket_shutdown(Vio * vio)
+int vio_socket_shutdown(Vio * vio, int how)
 {
   int r=0;
   DBUG_ENTER("vio_shutdown");
@@ -439,11 +439,11 @@ int vio_socket_shutdown(Vio * vio)
       vio->type == VIO_TYPE_SSL);
 
     DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
-#ifdef _WIN32
-    CancelIoEx(mysql_socket_getfd(vio->mysql_socket), NULL);
-#endif
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
+    if (mysql_socket_shutdown(vio->mysql_socket, how))
       r= -1;
+#ifdef _WIN32
+	CancelIoEx((HANDLE)mysql_socket_getfd(vio->mysql_socket), NULL);
+#endif
   }
   if (r)
   {
