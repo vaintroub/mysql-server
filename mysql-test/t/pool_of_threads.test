@@ -1,0 +1,60 @@
+# Start with thread_handling=pool-of-threads
+# and run a number of tests
+
+-- source include/have_pool_of_threads.inc
+set global thread_pool_max_threads=2;
+-- source include/common-tests.inc
+
+# Test that we cannot have more simultaneous connections than
+# threadpool-max-threads
+# First set two connections running, and check that extra connection
+# on normal port fails due to--thread-pool-max_threads=2
+connection default;
+
+# Sleep for slightly longer than 5 sec to trigger MDEV-4566 
+# (abort in interruptible wait connection check)
+send SELECT sleep(5.5); 
+--sleep  1 
+
+connect(con2,localhost,root,,);
+connection con2;
+send SELECT sleep(5);
+--sleep  0.5
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(con3,localhost,root,,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: managed to establish more than --thread_pool_max_threads connections
+}
+if ($error)
+{
+  --echo # -- Success: more than --thread_pool_max_threads normal connections not possible
+}
+
+connection default;
+--reap
+connection con2;
+--reap
+
+# Now try again, allowing bigger max threads.
+set global thread_pool_max_threads=3;
+
+connection default;
+send SELECT sleep(2);
+
+connection con2;
+send SELECT sleep(2);
+--sleep 1
+
+connect(con3,localhost,root,,);
+
+SELECT 'Connection ok';
+
+set global thread_pool_max_threads=DEFAULT;

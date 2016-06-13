@@ -76,12 +76,12 @@ int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event)
   else
     timeout= vio->write_timeout;
 
-  if (before_wait)
+  if (timeout > 0 && before_wait)
     before_wait();
 
   io_wait_ret = vio_io_wait(vio, event, timeout);
 
-  if (after_wait)
+  if (timeout  > 0 && after_wait)
     after_wait();
 
   /* Wait for input data to become available. */

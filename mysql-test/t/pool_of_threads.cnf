@@ -1,0 +1,12 @@
+!include include/default_my.cnf
+
+[mysqld.1]
+thread-handling=   pool-of-threads
+loose-thread_pool_size= 2 
+#thread_pool_max_threads= 2 
+# extra-port= opt-port 
+# extra-max-connections=1
+
+[client]
+connect-timeout=  2 
+
