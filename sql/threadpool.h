@@ -12,7 +12,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-#define MAX_THREAD_GROUPS 128
+#define MAX_THREAD_GROUPS  100000
 
 enum tp_high_prio_mode_t {
   TP_HIGH_PRIO_MODE_TRANSACTIONS,
@@ -24,6 +24,7 @@ enum tp_high_prio_mode_t {
 extern uint threadpool_min_threads;  /* Minimum threads in pool */
 extern uint threadpool_idle_timeout; /* Shutdown idle worker threads  after this timeout */
 extern uint threadpool_size; /* Number of parallel executing threads */
+extern uint threadpool_max_size; /* Max number of thread groups */
 extern uint threadpool_stall_limit;  /* time interval in 10 ms units for stall checks*/
 extern uint threadpool_max_threads;  /* Maximum threads in pool */
 extern uint threadpool_oversubscribe;  /* Maximum active threads in group */
