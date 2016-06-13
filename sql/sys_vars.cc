@@ -2555,6 +2555,15 @@ static bool fix_threadpool_stall_limit(sys_var*, THD*, enum_var_type)
 }
 #endif
 
+static Sys_var_uint Sys_threadpool_max_threads(
+	"thread_pool_max_threads",
+	"Maximum allowed number of worker threads in the thread pool",
+	GLOBAL_VAR(threadpool_max_threads), CMD_LINE(REQUIRED_ARG),
+	VALID_RANGE(1, 65536), DEFAULT(500), BLOCK_SIZE(1),
+	NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+	ON_UPDATE(fix_tp_max_threads)
+);
+
 #ifdef _WIN32
 static Sys_var_uint Sys_threadpool_min_threads(
 	"thread_pool_min_threads",
@@ -2563,14 +2572,6 @@ static Sys_var_uint Sys_threadpool_min_threads(
 	VALID_RANGE(1, 256), DEFAULT(1), BLOCK_SIZE(1),
 	NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
 	ON_UPDATE(fix_tp_min_threads)
-);
-static Sys_var_uint Sys_threadpool_max_threads(
-	"thread_pool_max_threads",
-	"Maximum allowed number of worker threads in the thread pool",
-	GLOBAL_VAR(threadpool_max_threads), CMD_LINE(REQUIRED_ARG),
-	VALID_RANGE(1, 65536), DEFAULT(500), BLOCK_SIZE(1),
-	NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-	ON_UPDATE(fix_tp_max_threads)
 );
 
 #else
