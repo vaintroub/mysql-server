@@ -989,6 +989,7 @@ static int thread_group_init(thread_group_t *thread_group,
   thread_group->shutdown_pipe[0]= -1;
   thread_group->shutdown_pipe[1]= -1;
   thread_group->queue.empty();
+  thread_group->high_prio_queue.empty();
   DBUG_RETURN(0);
 }
 
