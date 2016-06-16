@@ -374,6 +374,7 @@ sync_array_reserve_cell(
 	return false;
 }
 
+#include "mysql/service_thd_wait.h"
 /******************************************************************//**
 This function should be called when a thread starts to wait on
 a wait array cell. In the debug version this function checks
@@ -421,7 +422,9 @@ sync_array_wait_event(
 #endif
 	sync_array_exit(arr);
 
+	thd_wait_begin(NULL, THD_WAIT_USER_LOCK);
 	os_event_wait_low(event, cell->signal_count);
+	thd_wait_end(NULL);
 
 	sync_array_free_cell(arr, index);
 }
