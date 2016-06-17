@@ -1198,18 +1198,6 @@ inline_mysql_socket_shutdown
 {
   int result;
 
-#ifdef _WIN32
-  static LPFN_DISCONNECTEX DisconnectEx = NULL;
-  if (DisconnectEx == NULL)
-  {
-    DWORD dwBytesReturned;
-    GUID guidDisconnectEx = WSAID_DISCONNECTEX;
-    WSAIoctl(mysql_socket.fd, SIO_GET_EXTENSION_FUNCTION_POINTER,
-             &guidDisconnectEx, sizeof(GUID),
-             &DisconnectEx, sizeof(DisconnectEx), 
-             &dwBytesReturned, NULL, NULL);
-  }
-#endif
 
 /* Instrumentation start */
 #ifdef HAVE_PSI_SOCKET_INTERFACE
@@ -1221,13 +1209,7 @@ inline_mysql_socket_shutdown
       (&state, mysql_socket.m_psi, PSI_SOCKET_SHUTDOWN, (size_t)0, src_file, src_line);
 
     /* Instrumented code */
-#ifdef _WIN32
-    if (DisconnectEx)
-      result= (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED) NULL,
-                            (DWORD) 0, (DWORD) 0) == TRUE) ? 0 : -1;
-    else
-#endif
-      result= shutdown(mysql_socket.fd, how);
+    result= shutdown(mysql_socket.fd, how);
 
     /* Instrumentation end */
     if (locker != NULL)
@@ -1238,13 +1220,7 @@ inline_mysql_socket_shutdown
 #endif
 
   /* Non instrumented code */
-#ifdef _WIN32
-  if (DisconnectEx)
-    result= (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED) NULL,
-                          (DWORD) 0, (DWORD) 0) == TRUE) ? 0 : -1;
-  else
-#endif
-    result= shutdown(mysql_socket.fd, how);
+  result= shutdown(mysql_socket.fd, how);
 
   return result;
 }

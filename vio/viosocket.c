@@ -22,7 +22,10 @@
   we are working on.  In this case we should just return read errors from
   the file descriptior.
 */
-
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 #include "vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
@@ -51,6 +54,15 @@ int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
   return socket_errno;
 }
 
+static void (*before_wait)(void);
+static void(*after_wait)(void);
+
+void vio_set_wait_callback(void(*before)(void),
+                           void(*after)(void))
+{
+  before_wait= before;
+  after_wait= after;
+}
 
 /**
   Attempt to wait for an I/O event on a socket.
@@ -63,7 +75,7 @@ int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
 
 int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event)
 {
-  int timeout, ret;
+  int timeout, ret, io_wait_ret;
 
   DBUG_ASSERT(event == VIO_IO_EVENT_READ || event == VIO_IO_EVENT_WRITE);
 
@@ -73,8 +85,16 @@ int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event)
   else
     timeout= vio->write_timeout;
 
+  if (timeout > 0 && before_wait)
+    before_wait();
+
+  io_wait_ret = vio_io_wait(vio, event, timeout);
+
+  if (timeout  > 0 && after_wait)
+    after_wait();
+
   /* Wait for input data to become available. */
-  switch (vio_io_wait(vio, event, timeout))
+  switch (io_wait_ret)
   {
   case -1:
     /* Upon failure, vio_read/write() shall return -1. */
@@ -408,31 +428,36 @@ vio_was_timeout(Vio *vio)
   return (vio_errno(vio) == SOCKET_ETIMEDOUT);
 }
 
+void vio_socket_delete(Vio *vio)
+{
+  if (!vio)
+    return;
+  if (!vio->inactive)
+    mysql_socket_close(vio->mysql_socket);
+  vio_delete(vio);
+}
 
-int vio_shutdown(Vio * vio)
+int vio_socket_shutdown(Vio * vio, int how)
 {
   int r=0;
   DBUG_ENTER("vio_shutdown");
 
- if (vio->inactive == FALSE)
-  {
-    DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
+ 
+  DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
 
-    DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
-      r= -1;
-    if (mysql_socket_close(vio->mysql_socket))
-      r= -1;
-  }
+  DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
+  if (mysql_socket_shutdown(vio->mysql_socket, how))
+    r= -1;
+#ifdef _WIN32
+  CancelIoEx((HANDLE)mysql_socket_getfd(vio->mysql_socket), NULL);
+#endif
   if (r)
   {
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio->inactive= TRUE;
-  vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
 

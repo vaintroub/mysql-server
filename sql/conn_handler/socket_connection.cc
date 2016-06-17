@@ -227,8 +227,6 @@ public:
                                             bool senderror)
   {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
-
-    mysql_socket_shutdown(m_connect_sock, SHUT_RDWR);
     mysql_socket_close(m_connect_sock);
   }
 };

@@ -2548,7 +2548,7 @@ void THD::shutdown_active_vio()
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
-    vio_shutdown(active_vio);
+    vio_shutdown(active_vio, SHUT_RD);
     active_vio = 0;
   }
 #endif

@@ -159,10 +159,9 @@ void vio_delete_shared_memory(Vio *vio)
 
   if (!vio)
     DBUG_VOID_RETURN;
-
-  if (vio->inactive == FALSE)
-    vio->vioshutdown(vio);
-
+  if (!vio->inactive) 
+  { 
+  vio_shutdown_shared_memory(vio, SHUT_RDWR);
   /*
     Close all handlers. UnmapViewOfFile and CloseHandle return non-zero
     result if they are success.
@@ -187,7 +186,7 @@ void vio_delete_shared_memory(Vio *vio)
 
   if (CloseHandle(vio->event_conn_closed) == 0)
     DBUG_PRINT("vio_error", ("CloseHandle(vio->ecc) failed"));
-
+  }
   vio_delete(vio);
 
   DBUG_VOID_RETURN;
@@ -204,21 +203,14 @@ void vio_delete_shared_memory(Vio *vio)
   All handles are closed and the VIO is cleaned up when vio_delete() is
   called and this completes the vio cleanup operation in its entirety.
 */
-int vio_shutdown_shared_memory(Vio * vio)
+int vio_shutdown_shared_memory(Vio * vio, int how)
 {
   DBUG_ENTER("vio_shutdown_shared_memory");
-  if (vio->inactive == FALSE)
-  {
-    /*
-      Set event_conn_closed for notification of both client and server that
-      connection is closed
-    */
-    SetEvent(vio->event_conn_closed);
-  }
-
-  vio->inactive= TRUE;
-  vio->mysql_socket= MYSQL_INVALID_SOCKET;
-
+  /*
+    Set event_conn_closed for notification of both client and server that
+    connection is closed
+  */
+  SetEvent(vio->event_conn_closed);
   DBUG_RETURN(0);
 }
 
