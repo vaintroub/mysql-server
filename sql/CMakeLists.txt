@@ -297,6 +297,13 @@ IF(WIN32)
       )
 ENDIF()
 
+IF(WIN32)
+  LIST(APPEND SQL_SOURCE threadpool_common.cc threadpool_win.cc)
+ELSE()
+  LIST(APPEND SQL_SOURCE threadpool_common.cc threadpool_unix.cc)
+ENDIF()
+ADD_DEFINITIONS(-DHAVE_POOL_OF_THREADS)
+
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   debug_sync.cc

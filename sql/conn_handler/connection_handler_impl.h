@@ -106,4 +106,17 @@ protected:
   virtual uint get_max_threads() const { return 1; }
 };
 
+class Thread_pool_connection_handler : public Connection_handler
+{
+  Thread_pool_connection_handler(const Thread_pool_connection_handler&);
+  Thread_pool_connection_handler&
+    operator=(const Per_thread_connection_handler&);
+public:
+  Thread_pool_connection_handler();
+  virtual ~Thread_pool_connection_handler();
+protected:
+  virtual bool add_connection(Channel_info* channel_info);
+  virtual uint get_max_threads() const;
+};
+
 #endif // CONNECTION_HANDLER_IMPL_INCLUDED
