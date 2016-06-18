@@ -222,8 +222,7 @@ int threadpool_add_connection(THD *thd)
     goto end;
   }
 
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd_manager->add_thd(thd);
+  Global_THD_manager::get_instance()->add_thd(thd);
 
   if (thd_prepare_connection(thd))
     goto end;

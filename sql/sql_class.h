@@ -543,6 +543,8 @@ typedef struct system_variables
   ulong session_track_gtids;
 
   ulong max_execution_time;
+  uint  threadpool_high_prio_tickets;
+  ulong threadpool_high_prio_mode;
 
   char *track_sysvars_ptr;
   my_bool session_track_schema;
