@@ -142,7 +142,9 @@
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
 #include "sql_thd_internal_api.h"       // create_thd, destroy_thd
-
+#ifdef HAVE_POOL_OF_THREADS
+#include "threadpool.h"
+#endif
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
 #endif
@@ -6581,6 +6583,15 @@ static int show_slave_open_temp_tables(THD *thd, SHOW_VAR *var, char *buf)
   return 0;
 }
 
+#ifdef HAVE_POOL_OF_THREADS
+int show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_INT;
+  var->value= buff;
+  *(int *)buff= tp_get_idle_thread_count();
+  return 0;
+}
+#endif
 /*
   Variables shown by SHOW STATUS in alphabetical order
 */
@@ -6742,6 +6753,11 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,                         SHOW_LONG,              SHOW_SCOPE_GLOBAL},
   {"Tc_log_page_size",         (char*) &tc_log_page_size,                              SHOW_LONG_NOFLUSH,      SHOW_SCOPE_GLOBAL},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,                             SHOW_LONG,              SHOW_SCOPE_GLOBAL},
+#ifdef HAVE_POOL_OF_THREADS
+  {"Threadpool_idle_threads",  (char *) &show_threadpool_idle_threads,                 SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Threadpool_threads",       (char *) &tp_stats.num_worker_threads,                  SHOW_INT,               SHOW_SCOPE_GLOBAL},
+#endif
+
 #ifndef EMBEDDED_LIBRARY
   {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
 #endif
