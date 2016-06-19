@@ -683,7 +683,6 @@ static void start_timer(pool_timer_t* timer)
   mysql_cond_init(key_timer_cond, &timer->cond);
   timer->shutdown = false;
   mysql_thread_create(key_timer_thread,&thread_id, NULL, timer_thread, timer);
-  Global_THD_manager::get_instance()->inc_thread_created();
   DBUG_VOID_RETURN;
 }
 
@@ -892,7 +891,7 @@ static int create_worker(thread_group_t *thread_group)
   {
     thread_group->last_thread_creation_time=my_micro_time();
     add_thread_count(thread_group, 1);
-    Global_THD_manager::get_instance()->inc_thread_created();
+    inc_thread_created();
   }
 
 end:
@@ -1094,8 +1093,9 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
 {
   DBUG_ENTER("queue_put");
 
+  connection->tickets= connection->thd?connection->thd->variables.threadpool_high_prio_tickets:0;
+
   mysql_mutex_lock(&thread_group->mutex);
-  connection->tickets= connection->thd->variables.threadpool_high_prio_tickets;
   thread_group->queue.push_back(connection);
 
   if (thread_group->active_thread_count == 0)
