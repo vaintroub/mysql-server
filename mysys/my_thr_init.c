@@ -30,7 +30,7 @@ static my_bool my_thread_global_init_done= FALSE;
 static uint    THR_thread_count= 0;
 static uint    my_thread_end_wait_time= 5;
 static my_thread_id thread_id= 0;
-static thread_local_key_t THR_KEY_mysys;
+thread_local_key_t THR_KEY_mysys;
 #endif
 static thread_local_key_t THR_KEY_myerrno;
 #ifdef _WIN32

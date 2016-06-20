@@ -79,9 +79,8 @@ struct Worker_thread_context
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_thread *psi_thread;
 #endif
-
 #ifndef DBUG_OFF
-  my_thread_id thread_id;
+  void *dbug_context;
 #endif
 
   void save()
@@ -90,7 +89,7 @@ struct Worker_thread_context
     psi_thread= PSI_THREAD_CALL(get_thread)();
 #endif
 #ifndef DBUG_OFF
-    thread_id= my_thread_var_id();
+    dbug_context= my_get_thread_local(THR_KEY_mysys);
 #endif
   }
 
@@ -100,7 +99,7 @@ struct Worker_thread_context
     PSI_THREAD_CALL(set_thread)(psi_thread);
 #endif
 #ifndef DBUG_OFF
-    set_my_thread_var_id(thread_id);
+    my_set_thread_local(THR_KEY_mysys, dbug_context);
 #endif
     my_set_thread_local(THR_THD, 0);
     my_set_thread_local(THR_MALLOC, 0);
@@ -114,7 +113,7 @@ Attach/associate the connection with the OS thread,
 static bool thread_attach(THD* thd)
 {
 #ifndef DBUG_OFF
-  set_my_thread_var_id(thd->thread_id());
+  my_set_thread_local(THR_KEY_mysys, thd->dbug_context);
 #endif
   thd->thread_stack=(char*)&thd;
   thd->store_globals();
@@ -122,6 +121,8 @@ static bool thread_attach(THD* thd)
   PSI_THREAD_CALL(set_thread)(thd->get_psi());
 #endif
   mysql_socket_set_thread_owner(thd->get_protocol_classic()->get_vio()->mysql_socket);
+  mysql_thread_set_psi_id(thd->thread_id());
+  mysql_thread_set_psi_THD(thd);
   return 0;
 }
 
@@ -199,8 +200,10 @@ int threadpool_add_connection(THD *thd)
     Create a new connection context: mysys_thread_var and PSI thread
     Store them in THD.
   */
-  //my_thread_init();
-
+  my_thread_init();
+#ifndef DBUG_OFF
+  thd->dbug_context=  my_get_thread_local(THR_KEY_mysys);
+#endif
   thd->set_new_thread_id();
 
   /* Create new PSI thread for use with the THD. */
@@ -254,18 +257,23 @@ void threadpool_remove_connection(THD *thd)
   worker_context.save();
 
   thread_attach(thd);
-  thd_set_net_read_write(thd, 0);
-
   end_connection(thd);
   close_connection(thd, 0);
-
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->release_resources();
   Global_THD_manager::get_instance()->remove_thd(thd);
-  dec_connection_count();
+  Connection_handler_manager::dec_connection_count();
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /*
+    Delete the instrumentation for the job that just completed.
+  */
+  thd->set_psi(NULL);
+  PSI_THREAD_CALL(delete_current_thread)();
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   delete thd;
-
+  my_thread_end();
   worker_context.restore();
 }
 
@@ -274,24 +282,12 @@ void threadpool_remove_connection(THD *thd)
 */
 int threadpool_process_request(THD *thd)
 {
-  int retval= 0;
+  int retval;
   Worker_thread_context  worker_context;
   worker_context.save();
 
   thread_attach(thd);
-  thd_set_net_read_write(thd, 0);
-
-  if (thd->killed == THD::KILL_CONNECTION)
-  {
-    /* 
-      killed flag was set by timeout handler 
-      or KILL command. Return error.
-    */
-    retval= 1;
-    goto end;
-  }
-
-
+ 
   /*
     In the loop below, the flow is essentially the copy of thead-per-connections
     logic, see do_handle_one_connection() in sql_connect.c
@@ -301,32 +297,25 @@ int threadpool_process_request(THD *thd)
     (SSL can preread and cache incoming data, and vio->has_data() checks if it 
     was the case).
   */
+  retval= 1;
   for(;;)
   {
-    Vio *vio;
+    if (!thd_connection_alive(thd))
+      break;
     thd_set_net_read_write(thd, 0);
     mysql_audit_release(thd);
-
-    if ((retval= do_command(thd)) != 0)
-      goto end;
-    if (!thd_connection_alive(thd))
-    {
-      retval= 1;
-      goto end;
-    }
-
+    if (do_command(thd))
+      break;
     set_thd_idle(thd);
-
-    vio= thd->get_protocol_classic()->get_net()->vio;
-    if (!vio->has_data(vio))
-    { 
+    if (!thd_connection_has_data(thd))
+    {
       /* More info on this debug sync is in sql_parse.cc*/
       DEBUG_SYNC(thd, "before_do_command_net_read");
-      goto end;
+      retval= 0;
+      break;
     }
   }
 
-end:
   worker_context.restore();
   return retval;
 }
@@ -342,7 +331,7 @@ void tp_post_kill_notification(THD *thd)
 
 THD_event_functions tp_event_functions=
 {
-  tp_wait_begin, tp_wait_end,0
+  tp_wait_begin, tp_wait_end,tp_post_kill_notification
 };
 
 

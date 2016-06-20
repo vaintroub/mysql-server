@@ -4560,6 +4560,9 @@ private:
     aggregates THD.
   */
   bool is_a_srv_session_thd;
+
+public:
+  void *dbug_context;
 };
 
 /**

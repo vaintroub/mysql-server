@@ -333,13 +333,12 @@ void destroy_connection(connection_t *connection, PTP_CALLBACK_INSTANCE instance
 
 /* 
   This function should be called first whenever a callback is invoked in the 
-  threadpool, does my_thread_init() if not yet done
+  threadpool
 */
 static void check_thread_init()
 {
   if (FlsGetValue(fls) == NULL)
   {
-    my_thread_init();
     FlsSetValue(fls, (void *)1);
     inc_thread_created();
     InterlockedIncrement((volatile long *)&tp_stats.num_worker_threads);
@@ -355,7 +354,6 @@ static VOID WINAPI thread_destructor(void *data)
 {
   if(data)
   {
-    my_thread_end();
     InterlockedDecrement((volatile long *)&tp_stats.num_worker_threads);
   }
 }
