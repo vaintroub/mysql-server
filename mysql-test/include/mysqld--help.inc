@@ -2,7 +2,7 @@
 # mysqld --help
 #
 --source include/not_embedded.inc
-
+--source include/one_thread_per_connection.inc
 #
 # force lower-case-table-names=1 (linux/macosx have different defaults)
 # force symbolic-links=0 (valgrind build has a different default)

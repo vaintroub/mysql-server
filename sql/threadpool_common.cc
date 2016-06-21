@@ -237,8 +237,10 @@ int threadpool_add_connection(THD *thd)
   if (!thd_connection_alive(thd))
     goto end;
 
-  retval= 0;
+  mysql_audit_release(thd);
   set_thd_idle(thd);
+
+  retval= 0;
 
 end:
   if (retval)
@@ -258,7 +260,7 @@ void threadpool_remove_connection(THD *thd)
 
   thread_attach(thd);
   end_connection(thd);
-  close_connection(thd, 0);
+  close_connection(thd, 0, false, false);
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->release_resources();
   Global_THD_manager::get_instance()->remove_thd(thd);
@@ -300,14 +302,13 @@ int threadpool_process_request(THD *thd)
   retval= 1;
   for(;;)
   {
+    if (do_command(thd))
+      goto end;
+
     if (!thd_connection_alive(thd))
-      break;
+      goto end;
 
-    thd_set_net_read_write(thd, 0);
     mysql_audit_release(thd);
-
-    if (do_command(thd) || thd->killed == THD::KILL_CONNECTION)
-      break;
 
     set_thd_idle(thd);
     if (!thd_connection_has_data(thd))
@@ -315,10 +316,11 @@ int threadpool_process_request(THD *thd)
       /* More info on this debug sync is in sql_parse.cc*/
       DEBUG_SYNC(thd, "before_do_command_net_read");
       retval= 0;
-      break;
+      goto end;
     }
   }
 
+end:
   worker_context.restore();
   return retval;
 }
