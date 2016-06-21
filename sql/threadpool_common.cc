@@ -302,10 +302,13 @@ int threadpool_process_request(THD *thd)
   {
     if (!thd_connection_alive(thd))
       break;
+
     thd_set_net_read_write(thd, 0);
     mysql_audit_release(thd);
-    if (do_command(thd))
+
+    if (do_command(thd) || thd->killed == THD::KILL_CONNECTION)
       break;
+
     set_thd_idle(thd);
     if (!thd_connection_has_data(thd))
     {
