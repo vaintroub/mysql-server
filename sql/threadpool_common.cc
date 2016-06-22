@@ -339,14 +339,25 @@ THD_event_functions tp_event_functions=
   tp_wait_begin, tp_wait_end,tp_post_kill_notification
 };
 
+extern "C" void before_vio_wait()
+{
+  tp_wait_begin(NULL, THD_WAIT_NET); 
+}
+
+extern "C" void after_vio_wait()
+{
+  tp_wait_end(NULL);
+}
 
 /* Connection handler class*/
 Thread_pool_connection_handler::Thread_pool_connection_handler()
 {
   if (tp_init())
     abort();
+  vio_set_wait_callback(before_vio_wait, after_vio_wait);
   Connection_handler_manager::event_functions= &tp_event_functions;
 }
+
 
 Thread_pool_connection_handler::~Thread_pool_connection_handler()
 {

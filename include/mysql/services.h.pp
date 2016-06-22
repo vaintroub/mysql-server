@@ -263,7 +263,8 @@ typedef enum _thd_wait_type_e {
   THD_WAIT_BINLOG= 8,
   THD_WAIT_GROUP_COMMIT= 9,
   THD_WAIT_SYNC= 10,
-  THD_WAIT_LAST= 11
+  THD_WAIT_NET=11,
+  THD_WAIT_LAST= 12
 } thd_wait_type;
 extern struct thd_wait_service_st {
   void (*thd_wait_begin_func)(void*, int);
@@ -494,13 +495,13 @@ extern struct mysql_keyring_service_st
   int (*my_key_store_func)(const char *, const char *, const char *,
                            const void *, size_t);
   int (*my_key_fetch_func)(const char *, char **, const char *, void **,
-                               size_t *);
+                           size_t *);
   int (*my_key_remove_func)(const char *, const char *);
   int (*my_key_generate_func)(const char *, const char *, const char *,
-                                  size_t);
+                              size_t);
 } *mysql_keyring_service;
 int my_key_store(const char *, const char *, const char *, const void *, size_t);
 int my_key_fetch(const char *, char **, const char *, void **,
-                     size_t *);
+                 size_t *);
 int my_key_remove(const char *, const char *);
 int my_key_generate(const char *, const char *, const char *, size_t);

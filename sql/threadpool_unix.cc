@@ -1011,6 +1011,8 @@ static void thread_group_destroy(thread_group_t *thread_group)
       thread_group->shutdown_pipe[i]= -1;
     }
   }
+  if (shutdown_group_count)
+    my_atomic_add32(&shutdown_group_count, -1);
 }
 
 /**
@@ -1625,8 +1627,7 @@ static void *worker_main(void *param)
   if (last_thread)
   {
     thread_group_destroy(thread_group);
-    if (my_atomic_add32(&shutdown_group_count, -1) == 1)
-      free(all_groups);
+
   }
   my_thread_end();
   return NULL;
@@ -1681,6 +1682,22 @@ void tp_end()
   for (uint i= 0; i < threadpool_max_size; i++)
   {
     thread_group_close(&all_groups[i]);
+  }
+
+  /* Wait for at most 1 second for shutdown to finish */
+  int retries= 1000;
+  while(shutdown_group_count && retries--)
+  {
+    my_sleep(1000); 
+  }
+  if(shutdown_group_count)
+  {
+    sql_print_warning("Threadpool did not shutdown all thread groups:  %d groups still active\n",shutdown_group_count);
+  }
+  else
+  {
+    free(all_groups);
+    all_groups= 0;
   }
   threadpool_started= false;
   DBUG_VOID_RETURN;
