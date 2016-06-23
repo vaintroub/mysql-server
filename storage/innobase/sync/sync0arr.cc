@@ -472,7 +472,9 @@ sync_array_wait_event(
 #endif /* UNIV_DEBUG */
 	sync_array_exit(arr);
 
+	thd_wait_begin(NULL, THD_WAIT_USER_LOCK);
 	os_event_wait_low(sync_cell_get_event(cell), cell->signal_count);
+	thd_wait_end(NULL);
 
 	sync_array_free_cell(arr, cell);
 
